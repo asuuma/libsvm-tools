@@ -11,19 +11,20 @@ if len(sys.argv) <= 1:
 # svm, grid, and gnuplot executable files
 
 is_win32 = (sys.platform == 'win32')
+dir = os.path.dirname(__file__)
 if not is_win32:
-	svmscale_exe = "../svm-scale"
-	svmtrain_exe = "../svm-train"
-	svmpredict_exe = "../svm-predict"
-	grid_py = "./grid.py"
+	svmscale_exe = os.path.join(dir, "../svm-scale")
+	svmtrain_exe = os.path.join(dir, "../svm-train")
+	svmpredict_exe = os.path.join(dir, "../svm-predict")
+	grid_py = os.path.join(dir, "./grid.py")
 	gnuplot_exe = "/usr/bin/gnuplot"
 else:
         # example for windows
-	svmscale_exe = r"..\windows\svm-scale.exe"
-	svmtrain_exe = r"..\windows\svm-train.exe"
-	svmpredict_exe = r"..\windows\svm-predict.exe"
+	svmscale_exe = os.path.join(dir, r"..\windows\svm-scale.exe")
+	svmtrain_exe = os.path.join(dir, r"..\windows\svm-train.exe")
+	svmpredict_exe = os.path.join(dir, r"..\windows\svm-predict.exe")
 	gnuplot_exe = r"c:\tmp\gnuplot\binary\pgnuplot.exe"
-	grid_py = r".\grid.py"
+	grid_py = os.path.join(dir, r".\grid.py")
 
 assert os.path.exists(svmscale_exe),"svm-scale executable not found"
 assert os.path.exists(svmtrain_exe),"svm-train executable not found"
@@ -45,11 +46,19 @@ if len(sys.argv) > 2:
 	scaled_test_file = file_name + ".scale"
 	predict_test_file = file_name + ".predict"
 
+options = ""
+if len(sys.argv) > 3:
+	options = sys.argv[3:]
+	options = " ".join(options)
+
 cmd = '{0} -s "{1}" "{2}" > "{3}"'.format(svmscale_exe, range_file, train_pathname, scaled_file)
 print('Scaling training data...')
-Popen(cmd, shell = True, stdout = PIPE).communicate()	
+_, stderr = Popen(cmd, shell = True, stdout = PIPE, stderr = PIPE).communicate()	
+if stderr.find('Use -l 0') != -1:
+	cmd = '{0} -l 0 -s "{1}" "{2}" > "{3}"'.format(svmscale_exe, range_file, train_pathname, scaled_file)
+	Popen(cmd, shell = True, stdout = PIPE).communicate()	
 
-cmd = '{0} -svmtrain "{1}" -gnuplot "{2}" "{3}"'.format(grid_py, svmtrain_exe, gnuplot_exe, scaled_file)
+cmd = '{0} {4} -svmtrain "{1}" -gnuplot "{2}" "{3}"'.format(grid_py, svmtrain_exe, gnuplot_exe, scaled_file, options)
 print('Cross validation...')
 f = Popen(cmd, shell = True, stdout = PIPE).stdout
 
@@ -62,7 +71,7 @@ c,g,rate = map(float,last_line.split())
 
 print('Best c={0}, g={1} CV rate={2}'.format(c,g,rate))
 
-cmd = '{0} -c {1} -g {2} "{3}" "{4}"'.format(svmtrain_exe,c,g,scaled_file,model_file)
+cmd = '{0} {5} -c {1} -g {2} "{3}" "{4}"'.format(svmtrain_exe,c,g,scaled_file,model_file, options)
 print('Training...')
 Popen(cmd, shell = True, stdout = PIPE).communicate()
 
